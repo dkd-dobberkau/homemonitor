@@ -9,7 +9,7 @@ import json
 import logging
 import sqlite3
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import homematicip
@@ -28,8 +28,7 @@ from homematicip.device import (
     WeatherSensorPlus,
     WeatherSensorPro,
     FullFlushShutter,
-    PlugableSwitchMeasuring,
-    BrandSwitchMeasuring,
+    SwitchMeasuring,
     SmokeDetector,
     WaterSensor,
     AlarmSirenIndoor,
@@ -80,7 +79,7 @@ def store_reading(conn, device_id, device_label, device_type, metric, value, val
         """INSERT INTO device_readings
            (timestamp, device_id, device_label, device_type, metric, value, value_text)
            VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (datetime.utcnow().isoformat(), device_id, device_label, device_type, metric, value, value_text),
+        (datetime.now(timezone.utc).isoformat(), device_id, device_label, device_type, metric, value, value_text),
     )
 
 
@@ -146,7 +145,7 @@ def collect_device_data(conn, device):
 
 async def poll_once(home):
     """Fetch current state from the cloud and store all device data."""
-    await home.get_current_state()
+    await home.get_current_state_async()
 
     conn = sqlite3.connect(str(DB_PATH))
     count = 0
@@ -172,9 +171,10 @@ async def main():
         log.error("No config.ini found! Run 'hmip_generate_auth_token' first.")
         return
 
+    init_db()
+
     home = Home()
-    home.set_auth_token(config.auth_token)
-    home.init(config.access_point)
+    await home.init_async(config.access_point, auth_token=config.auth_token)
 
     log.info("Connected to Access Point: %s", config.access_point)
 
