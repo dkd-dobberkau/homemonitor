@@ -1,0 +1,7 @@
+services:
+  collector:
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./config.ini:/app/config.ini:ro
+    restart: unless-stopped
