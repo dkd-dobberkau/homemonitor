@@ -518,15 +518,14 @@
                 const rssi = dev.metrics.rssi?.value;
                 const battery = dev.metrics.low_battery?.value;
                 if (rssi !== undefined) {
-                    sysHtml += `<div class="system-item">
-                        <span class="label">${name}</span>
-                        <span class="${rssiClass(rssi)}">${rssi} dBm (${rssiLabel(rssi)})</span>
-                    </div>`;
-                }
-                if (battery === 1) {
-                    sysHtml += `<div class="system-item">
-                        <span class="label">${name}</span>
-                        <span class="rssi-bad">${t('batteryLow')}</span>
+                    const batteryBadge = battery === 1
+                        ? `<span class="card-battery rssi-bad">${t('batteryLow')}</span>`
+                        : '';
+                    sysHtml += `<div class="system-card">
+                        <span class="card-name">${name}</span>
+                        <span class="card-value ${rssiClass(rssi)}">${rssi} dBm</span>
+                        <span class="card-label ${rssiClass(rssi)}">${rssiLabel(rssi)}</span>
+                        ${batteryBadge}
                     </div>`;
                 }
             }
