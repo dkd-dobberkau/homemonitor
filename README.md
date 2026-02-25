@@ -1,85 +1,86 @@
-# Homematic IP Data Collector POC
+# HomeMonitor
 
-Sammelt Sensordaten vom Homematic IP Access Point über die Cloud API
-und speichert sie in einer SQLite-Datenbank.
+Smart Home Sensor Data Collector and Dashboard. Polls sensor data via the Homematic IP Cloud API and visualizes it in a web dashboard.
+
+![Dashboard](docs/dashboard.png)
+
+## Features
+
+- Collects sensor data every 5 minutes (temperature, humidity, window/door state, motion, power consumption, etc.)
+- Web dashboard with live charts and auto-refresh
+- Time range selection: 1h, 6h, 24h, 7d
+- Runs as Docker containers
 
 ## Setup
 
-### 1. Auth-Token generieren
-
-Zuerst brauchst du einen Auth-Token für deinen Access Point.
-Installiere die homematicip-Bibliothek temporär:
+### 1. Generate Auth Token
 
 ```bash
-# Mit uv (empfohlen)
-uvx hmip_generate_auth_token
-
-# Oder mit pip
-pip install homematicip
-hmip_generate_auth_token
+uvx --from homematicip hmip_generate_auth_token
 ```
 
-Das Skript fragt nach:
-- **SGTIN**: Steht auf der Rückseite deines Access Points (z.B. 3014-xxxx-xxxx-xxxx-xxxx-xxxx)
-- **PIN**: Falls in der App gesetzt, sonst leer lassen
+The script will ask for:
+- **SGTIN**: Found on the back of your Access Point (e.g. 3014-xxxx-xxxx-xxxx-xxxx-xxxx)
+- **PIN**: If set in the app, otherwise leave empty
 
-Dann die **blaue Taste** am Access Point drücken.
+Then press the **blue button** on the Access Point.
 
-Es wird eine `config.ini` im aktuellen Verzeichnis erstellt.
+This creates a `config.ini` in the current directory.
 
-### 2. config.ini in dieses Verzeichnis kopieren
+### 2. Copy config.ini
 
 ```bash
-cp /pfad/zur/config.ini ./config.ini
+cp /path/to/config.ini ./config.ini
 ```
 
-### 3. Docker Container starten
+### 3. Start
 
 ```bash
 docker compose up -d
 ```
 
-### 4. Logs prüfen
+The dashboard is available at **http://localhost:8080**.
+
+### 4. Check Logs
 
 ```bash
 docker compose logs -f
 ```
 
-### 5. Daten abfragen
+## Architecture
 
-Die SQLite-Datenbank liegt unter `./data/homematic.db`:
-
-```bash
-# Alle Geräte anzeigen
-sqlite3 data/homematic.db "SELECT DISTINCT device_label, device_type FROM device_readings;"
-
-# Letzte Temperaturwerte
-sqlite3 data/homematic.db "SELECT timestamp, device_label, value FROM device_readings WHERE metric='temperature' ORDER BY timestamp DESC LIMIT 20;"
-
-# Fensterstatus
-sqlite3 data/homematic.db "SELECT timestamp, device_label, value_text FROM device_readings WHERE metric='window_state' ORDER BY timestamp DESC LIMIT 20;"
-
-# Bewegungsmeldungen
-sqlite3 data/homematic.db "SELECT timestamp, device_label, value FROM device_readings WHERE metric='motion_detected' AND value=1 ORDER BY timestamp DESC LIMIT 20;"
+```
+docker compose
+├── collector   – Polls Homematic IP Cloud API, writes to SQLite
+└── dashboard   – Flask web app on port 8080, reads SQLite
+    └── data/homematic.db (shared volume)
 ```
 
-## Konfiguration
+## Configuration
 
-- **Poll-Intervall**: Standard 5 Minuten (300 Sekunden), anpassbar in `collector.py` über `POLL_INTERVAL`
-- **Datenbank**: `./data/homematic.db` (SQLite)
+| Setting | Default | Location |
+|---------|---------|----------|
+| Poll interval | 300s (5 min) | `collector.py` → `POLL_INTERVAL` |
+| Dashboard port | 8080 | `docker-compose.yml` |
+| Database | `./data/homematic.db` | `collector.py` → `DB_PATH` |
 
-## Unterstützte Metriken
+## Supported Metrics
 
-| Metrik | Beschreibung | Gerätetyp |
-|--------|-------------|-----------|
-| temperature | Temperatur in °C | Thermostate, Sensoren |
-| humidity | Luftfeuchtigkeit in % | Sensoren |
-| window_state | Fenster/Tür offen/geschlossen | Fensterkontakte |
-| motion_detected | Bewegung erkannt | Bewegungsmelder |
-| illumination | Helligkeit in Lux | Bewegungsmelder |
-| power_consumption | Stromverbrauch in W | Schaltaktoren |
-| energy_counter | Energiezähler in Wh | Schaltaktoren |
-| smoke_alarm | Rauchalarm | Rauchmelder |
-| water_detected | Wasser erkannt | Wassersensor |
-| low_battery | Batterie schwach | Alle batteriebetriebenen |
-| rssi | Signalstärke | Alle Geräte |
+| Metric | Description | Device Types |
+|--------|-------------|-------------|
+| temperature | Temperature in °C | Thermostats, sensors |
+| humidity | Humidity in % | Sensors |
+| setpoint_temperature | Target temperature | Thermostats |
+| window_state | Window/door open/closed | Shutter contacts |
+| motion_detected | Motion detected | Motion detectors |
+| illumination | Brightness in Lux | Motion detectors |
+| power_consumption | Power in W | Switch actuators |
+| energy_counter | Energy in Wh | Switch actuators |
+| smoke_alarm | Smoke alarm | Smoke detectors |
+| water_detected | Water detected | Water sensors |
+| low_battery | Battery low | All battery-powered |
+| rssi | Signal strength | All devices |
+
+## License
+
+[MIT](LICENSE)
