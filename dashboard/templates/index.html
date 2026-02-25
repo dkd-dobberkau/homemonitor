@@ -55,9 +55,12 @@
         .chart-box h3 { font-size: 0.9rem; color: #555; margin-bottom: 1rem; }
         .chart-box canvas { width: 100% !important; }
 
-        .system-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem; margin-top: 0.5rem; }
-        .system-item { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #eee; font-size: 0.85rem; }
-        .system-item .label { color: #666; }
+        .system-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.8rem; margin-top: 0.5rem; }
+        .system-card { background: white; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 0.3rem; }
+        .system-card .card-name { font-size: 0.8rem; color: #666; line-height: 1.3; }
+        .system-card .card-value { font-size: 1.4rem; font-weight: bold; }
+        .system-card .card-label { font-size: 0.75rem; }
+        .system-card .card-battery { font-size: 0.75rem; margin-top: 0.2rem; }
         .rssi-good { color: #27ae60; }
         .rssi-ok { color: #f39c12; }
         .rssi-bad { color: #e74c3c; }
