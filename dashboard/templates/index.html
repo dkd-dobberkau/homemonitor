@@ -106,6 +106,13 @@
         .event-desc { color: #444; }
         .event-empty { text-align: center; color: #999; padding: 3rem; font-size: 0.95rem; }
 
+        .event-filter { margin-bottom: 1rem; }
+        .event-filter button {
+            background: #16213e; border: 1px solid #0f3460; color: #ccc;
+            padding: 0.4rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+        }
+        .event-filter button.active { background: #0f3460; color: white; border-color: #53a8b6; }
+
         @media (max-width: 768px) {
             .charts { grid-template-columns: 1fr; }
             header { flex-direction: column; gap: 0.8rem; }
@@ -237,6 +244,8 @@
                 eventSabotageOff: 'Sabotage: Entwarnung',
                 eventMoistureOn: 'Feuchtigkeit erkannt',
                 eventMoistureOff: 'Feuchtigkeit: Entwarnung',
+                importantOnly: 'Nur wichtige',
+                allEvents: 'Alle Ereignisse',
             },
             en: {
                 autoRefresh: 'Auto-refresh: 60s',
@@ -304,6 +313,8 @@
                 eventSabotageOff: 'Sabotage: all clear',
                 eventMoistureOn: 'Moisture detected',
                 eventMoistureOff: 'Moisture: all clear',
+                importantOnly: 'Important only',
+                allEvents: 'All events',
             }
         };
 
@@ -347,6 +358,7 @@
         });
 
         let currentView = 'dashboard';
+        let showImportantOnly = true;
 
         document.querySelectorAll('.view-tabs button').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -795,30 +807,45 @@
 
         async function loadEvents() {
             const logDiv = document.getElementById('viewLog');
+            let url = `/api/events?period=${currentPeriod}`;
+            if (showImportantOnly) url += '&min_severity=warning';
             let resp;
             try {
-                resp = await fetch(`/api/events?period=${currentPeriod}`);
+                resp = await fetch(url);
             } catch (e) {
                 return;
             }
             const events = await resp.json();
 
-            if (!events.length) {
-                logDiv.innerHTML = `<div class="event-log"><h3>${t('eventLog')}</h3><div class="event-empty">${t('noEvents')}</div></div>`;
-                return;
-            }
-
             let html = `<div class="event-log"><h3>${t('eventLog')}</h3>`;
-            for (const ev of events) {
-                html += `<div class="event-item severity-${ev.severity}">
-                    <span class="event-time">${formatTime(ev.timestamp)}</span>
-                    <span class="event-icon">${severityIcon(ev.severity)}</span>
-                    <span class="event-source">${ev.source}</span>
-                    <span class="event-desc">${eventDescription(ev)}</span>
-                </div>`;
+            html += `<div class="event-filter">
+                <button id="filterImportant" class="${showImportantOnly ? 'active' : ''}">${t('importantOnly')}</button>
+                <button id="filterAll" class="${!showImportantOnly ? 'active' : ''}">${t('allEvents')}</button>
+            </div>`;
+
+            if (!events.length) {
+                html += `<div class="event-empty">${t('noEvents')}</div>`;
+            } else {
+                for (const ev of events) {
+                    html += `<div class="event-item severity-${ev.severity}">
+                        <span class="event-time">${formatTime(ev.timestamp)}</span>
+                        <span class="event-icon">${severityIcon(ev.severity)}</span>
+                        <span class="event-source">${ev.source}</span>
+                        <span class="event-desc">${eventDescription(ev)}</span>
+                    </div>`;
+                }
             }
             html += `</div>`;
             logDiv.innerHTML = html;
+
+            document.getElementById('filterImportant').addEventListener('click', () => {
+                showImportantOnly = true;
+                loadEvents();
+            });
+            document.getElementById('filterAll').addEventListener('click', () => {
+                showImportantOnly = false;
+                loadEvents();
+            });
         }
 
         async function loadAll() {

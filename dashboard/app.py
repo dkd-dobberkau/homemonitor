@@ -161,6 +161,7 @@ def api_events():
     """Return state-change events from device and security readings."""
     period = request.args.get("period", "24h")
     event_type = request.args.get("type", "all")
+    min_severity = request.args.get("min_severity")
 
     delta = PERIOD_MAP.get(period, timedelta(hours=24))
     since = (datetime.now(timezone.utc) - delta).isoformat()
@@ -251,6 +252,11 @@ def api_events():
 
     # Sort combined events by timestamp descending (newest first)
     events.sort(key=lambda e: e["timestamp"], reverse=True)
+
+    if min_severity:
+        severity_order = {'critical': 2, 'warning': 1, 'info': 0}
+        min_level = severity_order.get(min_severity, 0)
+        events = [e for e in events if severity_order.get(e['severity'], 0) >= min_level]
 
     return jsonify(events)
 
