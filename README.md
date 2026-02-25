@@ -2,12 +2,16 @@
 
 Smart Home Sensor Data Collector and Dashboard. Polls sensor data via the Homematic IP Cloud API and visualizes it in a web dashboard.
 
-![Dashboard](docs/dashboard.png)
+![Dashboard](screenshots/dashboard-with-footer.png)
 
 ## Features
 
 - Collects sensor data every 5 minutes (temperature, humidity, window/door state, motion, power consumption, etc.)
 - Web dashboard with live charts and auto-refresh
+- Alarm & security status with zone monitoring and siren alerts
+- Event log with severity filtering (critical, warning, info)
+- System status cards with signal strength and battery monitoring
+- Multilingual interface (German / English)
 - Time range selection: 1h, 6h, 24h, 7d
 - Runs as Docker containers
 
