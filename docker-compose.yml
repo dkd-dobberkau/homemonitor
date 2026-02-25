@@ -1,6 +1,8 @@
 services:
   collector:
     build: .
+    image: homemonitor-collector
+    container_name: homemonitor-collector
     volumes:
       - ./data:/app/data
       - ./config.ini:/app/config.ini:ro
@@ -10,6 +12,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dashboard
+    image: homemonitor-dashboard
+    container_name: homemonitor-dashboard
     ports:
       - "8080:8080"
     volumes:
