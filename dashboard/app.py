@@ -24,6 +24,21 @@ def get_db():
     return conn
 
 
+def get_severity(metric, new_value, new_text):
+    """Determine event severity based on metric and new value."""
+    if metric in ('smoke_alarm',) and new_text and new_text != 'IDLE_OFF':
+        return 'critical'
+    if metric in ('water_detected', 'moisture_detected', 'sabotage') and new_value == 1:
+        return 'critical'
+    if metric == 'siren_on' and new_value == 1:
+        return 'critical'
+    if metric == 'window_state' and new_text == 'OPEN':
+        return 'warning'
+    if metric in ('low_battery', 'unreachable') and new_value == 1:
+        return 'warning'
+    return 'info'
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -139,6 +154,105 @@ def api_security_readings():
             "value_text": row["value_text"],
         })
     return jsonify(data)
+
+
+@app.route("/api/events")
+def api_events():
+    """Return state-change events from device and security readings."""
+    period = request.args.get("period", "24h")
+    event_type = request.args.get("type", "all")
+
+    delta = PERIOD_MAP.get(period, timedelta(hours=24))
+    since = (datetime.now(timezone.utc) - delta).isoformat()
+
+    conn = get_db()
+    events = []
+
+    # Device state changes
+    if event_type in ("all", "device"):
+        device_rows = conn.execute("""
+            SELECT timestamp, device_label AS source, metric,
+                   value, value_text,
+                   LAG(value) OVER (PARTITION BY device_id, metric ORDER BY timestamp) AS prev_value,
+                   LAG(value_text) OVER (PARTITION BY device_id, metric ORDER BY timestamp) AS prev_text
+            FROM device_readings
+            WHERE timestamp > ?
+              AND metric IN ('window_state', 'motion_detected', 'smoke_alarm',
+                             'water_detected', 'moisture_detected', 'low_battery', 'unreachable')
+            ORDER BY timestamp DESC
+        """, [since]).fetchall()
+
+        for row in device_rows:
+            val = row["value"]
+            txt = row["value_text"]
+            prev_val = row["prev_value"]
+            prev_txt = row["prev_text"]
+
+            # Skip if no change (compare text for text metrics, value for numeric)
+            if txt is not None:
+                if txt == prev_txt:
+                    continue
+                old_display = prev_txt
+                new_display = txt
+            else:
+                if val == prev_val:
+                    continue
+                old_display = str(prev_val) if prev_val is not None else None
+                new_display = str(val) if val is not None else None
+
+            events.append({
+                "timestamp": row["timestamp"],
+                "source": row["source"],
+                "event": row["metric"],
+                "old_value": old_display,
+                "new_value": new_display,
+                "severity": get_severity(row["metric"], val, txt),
+            })
+
+    # Security state changes
+    if event_type in ("all", "security"):
+        security_rows = conn.execute("""
+            SELECT timestamp, group_label AS source, metric,
+                   value, value_text,
+                   LAG(value) OVER (PARTITION BY group_id, metric ORDER BY timestamp) AS prev_value,
+                   LAG(value_text) OVER (PARTITION BY group_id, metric ORDER BY timestamp) AS prev_text
+            FROM security_readings
+            WHERE timestamp > ?
+            ORDER BY timestamp DESC
+        """, [since]).fetchall()
+
+        for row in security_rows:
+            val = row["value"]
+            txt = row["value_text"]
+            prev_val = row["prev_value"]
+            prev_txt = row["prev_text"]
+
+            if txt is not None:
+                if txt == prev_txt:
+                    continue
+                old_display = prev_txt
+                new_display = txt
+            else:
+                if val == prev_val:
+                    continue
+                old_display = str(prev_val) if prev_val is not None else None
+                new_display = str(val) if val is not None else None
+
+            events.append({
+                "timestamp": row["timestamp"],
+                "source": row["source"],
+                "event": row["metric"],
+                "old_value": old_display,
+                "new_value": new_display,
+                "severity": get_severity(row["metric"], val, txt),
+            })
+
+    conn.close()
+
+    # Sort combined events by timestamp descending (newest first)
+    events.sort(key=lambda e: e["timestamp"], reverse=True)
+
+    return jsonify(events)
 
 
 @app.route("/api/readings")
