@@ -5,3 +5,15 @@ services:
       - ./data:/app/data
       - ./config.ini:/app/config.ini:ro
     restart: unless-stopped
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data:ro
+    restart: unless-stopped
+    depends_on:
+      - collector
