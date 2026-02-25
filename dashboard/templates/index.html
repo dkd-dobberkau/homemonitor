@@ -62,6 +62,27 @@
         .rssi-ok { color: #f39c12; }
         .rssi-bad { color: #e74c3c; }
 
+        .alarm-card {
+            background: white; border-radius: 10px; padding: 1.2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            grid-column: 1 / -1;
+            border-left: 5px solid #27ae60;
+        }
+        .alarm-card.armed-partial { border-left-color: #f39c12; background: #fffdf0; }
+        .alarm-card.armed-full { border-left-color: #e74c3c; background: #fff5f5; }
+        .alarm-card.siren-active { border-left-color: #e74c3c; background: #ffe0e0; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
+        .alarm-card h3 { font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.8rem; }
+        .alarm-zones { display: flex; gap: 2rem; margin-bottom: 0.8rem; }
+        .alarm-zone { font-size: 1.1rem; }
+        .alarm-zone .label { color: #666; margin-right: 0.5rem; }
+        .alarm-zone .armed { color: #e74c3c; font-weight: 700; }
+        .alarm-zone .disarmed { color: #27ae60; font-weight: 700; }
+        .alarm-rooms { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; }
+        .alarm-rooms .status-row { font-size: 0.85rem; }
+        .siren-warning { color: #e74c3c; font-weight: 700; font-size: 1rem; margin-bottom: 0.5rem; }
+        .sabotage-warning { color: #e74c3c; font-weight: 700; font-size: 0.9rem; }
+
         @media (max-width: 768px) {
             .charts { grid-template-columns: 1fr; }
             header { flex-direction: column; gap: 0.8rem; }
@@ -87,6 +108,7 @@
     </header>
 
     <div class="container">
+        <div class="alarm-card" id="alarmCard" style="display:none; margin-bottom: 1.5rem;"></div>
         <div class="cards" id="cards"></div>
 
         <div class="charts">
@@ -105,6 +127,10 @@
             <div class="chart-box">
                 <h3 id="chartMotionTitle"></h3>
                 <canvas id="chartMotion"></canvas>
+            </div>
+            <div class="chart-box">
+                <h3 id="chartAlarmTitle"></h3>
+                <canvas id="chartAlarm"></canvas>
             </div>
             <div class="chart-box" style="grid-column: 1 / -1;">
                 <h3 id="sysTitle"></h3>
@@ -146,6 +172,17 @@
                 rssiOk: 'OK',
                 rssiWeak: 'Schwach',
                 motionAxis: 'Bewegung',
+                alarmStatus: 'Alarm-Status',
+                armed: 'Scharf',
+                disarmed: 'Unscharf',
+                internalZone: 'Intern',
+                externalZone: 'Extern',
+                siren: 'Sirene',
+                sabotageWarning: 'Sabotage!',
+                alarmHistory: 'Alarm-Verlauf',
+                roomSecurity: 'Raum-Sicherheit',
+                noAlarmData: 'Keine Alarm-Daten',
+                sirenActive: 'Sirene aktiv!',
             },
             en: {
                 autoRefresh: 'Auto-refresh: 60s',
@@ -178,6 +215,17 @@
                 rssiOk: 'OK',
                 rssiWeak: 'Weak',
                 motionAxis: 'Motion',
+                alarmStatus: 'Alarm Status',
+                armed: 'Armed',
+                disarmed: 'Disarmed',
+                internalZone: 'Internal',
+                externalZone: 'External',
+                siren: 'Siren',
+                sabotageWarning: 'Sabotage!',
+                alarmHistory: 'Alarm History',
+                roomSecurity: 'Room Security',
+                noAlarmData: 'No alarm data',
+                sirenActive: 'Siren active!',
             }
         };
 
@@ -227,6 +275,7 @@
             document.getElementById('chartWinTitle').textContent = t('windowsDoorsChart');
             document.getElementById('chartMotionTitle').textContent = t('motionBrightness');
             document.getElementById('sysTitle').textContent = t('systemStatus');
+            document.getElementById('chartAlarmTitle').textContent = t('alarmHistory');
             // Activate correct lang button
             document.querySelectorAll('.lang-switch button').forEach(b => {
                 b.classList.toggle('active', b.dataset.lang === currentLang);
@@ -337,6 +386,66 @@
                 }
             }
             sysDiv.innerHTML = sysHtml;
+        }
+
+        async function loadSecurityCurrent() {
+            let resp;
+            try {
+                resp = await fetch('/api/security/current');
+            } catch (e) {
+                return;
+            }
+            const data = await resp.json();
+            const card = document.getElementById('alarmCard');
+
+            const hasData = Object.keys(data.zones).length > 0 || Object.keys(data.alarms).length > 0;
+            if (!hasData) {
+                card.style.display = 'none';
+                return;
+            }
+            card.style.display = 'block';
+
+            const zones = data.zones;
+            const alarms = data.alarms;
+            const rooms = data.rooms;
+
+            const internalActive = zones['INTERNAL']?.active || false;
+            const externalActive = zones['EXTERNAL']?.active || false;
+            const anySiren = Object.values(alarms).some(a => a.on);
+
+            card.className = 'alarm-card';
+            if (anySiren) card.classList.add('siren-active');
+            else if (internalActive && externalActive) card.classList.add('armed-full');
+            else if (internalActive || externalActive) card.classList.add('armed-partial');
+
+            let html = `<h3>${t('alarmStatus')}</h3>`;
+
+            if (anySiren) {
+                html += `<div class="siren-warning">${t('sirenActive')}</div>`;
+            }
+
+            html += `<div class="alarm-zones">`;
+            html += `<div class="alarm-zone"><span class="label">${t('internalZone')}:</span><span class="${internalActive ? 'armed' : 'disarmed'}">${internalActive ? t('armed') : t('disarmed')}</span></div>`;
+            html += `<div class="alarm-zone"><span class="label">${t('externalZone')}:</span><span class="${externalActive ? 'armed' : 'disarmed'}">${externalActive ? t('armed') : t('disarmed')}</span></div>`;
+            html += `</div>`;
+
+            if (Object.keys(rooms).length > 0) {
+                html += `<div class="alarm-rooms">`;
+                for (const [room, info] of Object.entries(rooms)) {
+                    const hasSabotage = info.sabotage === 1;
+                    if (hasSabotage) {
+                        html += `<div class="status-row"><span class="status-dot open"></span>${room}: <span class="sabotage-warning">${t('sabotageWarning')}</span></div>`;
+                    } else {
+                        const winState = info.window_state || 'CLOSED';
+                        const cls = winState === 'CLOSED' ? 'closed' : 'open';
+                        const label = winState === 'CLOSED' ? t('closed') : t('open');
+                        html += `<div class="status-row"><span class="status-dot ${cls}"></span>${room}: ${label}</div>`;
+                    }
+                }
+                html += `</div>`;
+            }
+
+            card.innerHTML = html;
         }
 
         function groupByDevice(data) {
@@ -503,13 +612,66 @@
             });
         }
 
+        async function loadAlarmChart() {
+            let resp;
+            try {
+                resp = await fetch(`/api/security/readings?metric=zone_active&period=${currentPeriod}`);
+            } catch (e) {
+                return;
+            }
+            const data = await resp.json();
+            if (!data.length) return;
+
+            const grouped = {};
+            for (const row of data) {
+                const key = row.group_label;
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(row);
+            }
+
+            const datasets = [];
+            const zoneColors = { 'INTERNAL': '#e74c3c', 'EXTERNAL': '#3498db' };
+            const zoneLabels = { 'INTERNAL': t('internalZone'), 'EXTERNAL': t('externalZone') };
+
+            for (const [label, rows] of Object.entries(grouped)) {
+                datasets.push({
+                    label: zoneLabels[label] || label,
+                    data: rows.map(r => ({ x: new Date(r.timestamp), y: r.value })),
+                    borderColor: zoneColors[label] || '#95a5a6',
+                    backgroundColor: 'transparent',
+                    stepped: true,
+                });
+            }
+
+            const ctx = document.getElementById('chartAlarm').getContext('2d');
+            if (charts['chartAlarm']) charts['chartAlarm'].destroy();
+            charts['chartAlarm'] = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: timeScale(),
+                        y: {
+                            min: -0.1, max: 1.1,
+                            ticks: { callback: v => v === 1 ? t('armed') : v === 0 ? t('disarmed') : '' }
+                        }
+                    },
+                    plugins: { legend: { position: 'top' } },
+                    elements: { point: { radius: 0 }, line: { borderWidth: 2 } }
+                }
+            });
+        }
+
         async function loadAll() {
             await Promise.all([
                 loadCurrent(),
+                loadSecurityCurrent(),
                 loadTempChart(),
                 loadHumidityChart(),
                 loadWindowChart(),
                 loadMotionChart(),
+                loadAlarmChart(),
             ]);
         }
 
