@@ -122,6 +122,18 @@
             });
         });
 
+        const TIME_SCALE = {
+            '1h':  { unit: 'minute', stepSize: 5,  displayFormats: { minute: 'HH:mm' } },
+            '6h':  { unit: 'minute', stepSize: 30, displayFormats: { minute: 'HH:mm' } },
+            '24h': { unit: 'hour',   stepSize: 2,  displayFormats: { hour: 'HH:mm' } },
+            '7d':  { unit: 'day',    stepSize: 1,  displayFormats: { day: 'dd.MM.' } },
+        };
+
+        function timeScale() {
+            const cfg = TIME_SCALE[currentPeriod] || TIME_SCALE['24h'];
+            return { type: 'time', time: { tooltipFormat: 'dd.MM. HH:mm', ...cfg }, title: { display: false } };
+        }
+
         function rssiClass(val) {
             if (val > -60) return 'rssi-good';
             if (val > -75) return 'rssi-ok';
@@ -236,7 +248,7 @@
                     responsive: true,
                     interaction: { mode: 'index', intersect: false },
                     scales: {
-                        x: { type: 'time', time: { tooltipFormat: 'dd.MM. HH:mm' }, title: { display: false } },
+                        x: timeScale(),
                         y: { title: { display: true, text: yLabel } }
                     },
                     plugins: { legend: { position: 'top' } },
@@ -322,7 +334,7 @@
                 options: {
                     responsive: true,
                     scales: {
-                        x: { type: 'time', time: { tooltipFormat: 'dd.MM. HH:mm' } },
+                        x: timeScale(),
                         y: { min: -0.1, max: 1.1, ticks: { callback: v => v === 1 ? 'Offen' : v === 0 ? 'Zu' : '' } }
                     },
                     plugins: { legend: { position: 'top' } },
@@ -369,7 +381,7 @@
                     responsive: true,
                     interaction: { mode: 'index', intersect: false },
                     scales: {
-                        x: { type: 'time', time: { tooltipFormat: 'dd.MM. HH:mm' } },
+                        x: timeScale(),
                         y: { position: 'left', min: -0.1, max: 1.1, title: { display: true, text: 'Bewegung' }, ticks: { callback: v => v === 1 ? 'Ja' : v === 0 ? 'Nein' : '' } },
                         y2: { position: 'right', title: { display: true, text: 'Lux' }, grid: { drawOnChartArea: false } }
                     },
