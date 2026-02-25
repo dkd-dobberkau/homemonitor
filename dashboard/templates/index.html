@@ -83,6 +83,29 @@
         .siren-warning { color: #e74c3c; font-weight: 700; font-size: 1rem; margin-bottom: 0.5rem; }
         .sabotage-warning { color: #e74c3c; font-weight: 700; font-size: 0.9rem; }
 
+        .view-tabs { display: flex; gap: 0.3rem; }
+        .view-tabs button {
+            background: #16213e; border: 1px solid #0f3460; color: #ccc;
+            padding: 0.4rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+        }
+        .view-tabs button.active { background: #0f3460; color: white; border-color: #53a8b6; }
+
+        .event-log { max-width: 900px; }
+        .event-log h3 { font-size: 0.9rem; color: #555; margin-bottom: 1rem; }
+        .event-item {
+            display: flex; align-items: center; gap: 0.8rem;
+            padding: 0.6rem 0.8rem; border-bottom: 1px solid #eee;
+            font-size: 0.9rem; border-radius: 6px; margin-bottom: 2px;
+        }
+        .event-item.severity-critical { background: #ffe0e0; border-left: 4px solid #e74c3c; }
+        .event-item.severity-warning { background: #fff8e1; border-left: 4px solid #f39c12; }
+        .event-item.severity-info { background: white; border-left: 4px solid #bdc3c7; }
+        .event-time { color: #888; font-size: 0.8rem; min-width: 4rem; font-family: monospace; }
+        .event-icon { font-size: 1rem; min-width: 1.5rem; text-align: center; }
+        .event-source { font-weight: 600; min-width: 8rem; }
+        .event-desc { color: #444; }
+        .event-empty { text-align: center; color: #999; padding: 3rem; font-size: 0.95rem; }
+
         @media (max-width: 768px) {
             .charts { grid-template-columns: 1fr; }
             header { flex-direction: column; gap: 0.8rem; }
@@ -93,6 +116,10 @@
     <header>
         <h1>HomeMonitor</h1>
         <div class="header-controls">
+            <div class="view-tabs">
+                <button data-view="dashboard" class="active" id="tabDashboardBtn"></button>
+                <button data-view="log" id="tabLogBtn"></button>
+            </div>
             <div class="period-buttons">
                 <button data-period="1h">1h</button>
                 <button data-period="6h">6h</button>
@@ -108,10 +135,11 @@
     </header>
 
     <div class="container">
-        <div class="alarm-card" id="alarmCard" style="display:none; margin-bottom: 1.5rem;"></div>
-        <div class="cards" id="cards"></div>
+        <div id="viewDashboard">
+            <div class="alarm-card" id="alarmCard" style="display:none; margin-bottom: 1.5rem;"></div>
+            <div class="cards" id="cards"></div>
 
-        <div class="charts">
+            <div class="charts">
             <div class="chart-box">
                 <h3 id="chartTempTitle"></h3>
                 <canvas id="chartTemp"></canvas>
@@ -137,6 +165,8 @@
                 <div class="system-grid" id="systemStatus"></div>
             </div>
         </div>
+        </div>
+        <div id="viewLog" style="display:none;"></div>
     </div>
 
     <script>
@@ -183,6 +213,30 @@
                 roomSecurity: 'Raum-Sicherheit',
                 noAlarmData: 'Keine Alarm-Daten',
                 sirenActive: 'Sirene aktiv!',
+                tabDashboard: 'Dashboard',
+                tabLog: 'Log',
+                eventLog: 'Ereignis-Log',
+                noEvents: 'Keine Ereignisse im Zeitraum',
+                eventWindowOpened: 'Fenster ge\u00f6ffnet',
+                eventWindowClosed: 'Fenster geschlossen',
+                eventMotionOn: 'Bewegung erkannt',
+                eventMotionOff: 'Keine Bewegung',
+                eventZoneArmed: 'Alarm scharf geschaltet',
+                eventZoneDisarmed: 'Alarm unscharf geschaltet',
+                eventSirenOn: 'Sirene aktiviert',
+                eventSirenOff: 'Sirene deaktiviert',
+                eventSmokeAlarm: 'Rauchmelder-Alarm',
+                eventSmokeOff: 'Rauchmelder: Entwarnung',
+                eventWaterDetected: 'Wasser erkannt',
+                eventWaterClear: 'Wasser: Entwarnung',
+                eventBatteryLow: 'Batterie schwach',
+                eventBatteryOk: 'Batterie OK',
+                eventUnreachable: 'Ger\u00e4t nicht erreichbar',
+                eventReachable: 'Ger\u00e4t wieder erreichbar',
+                eventSabotageOn: 'Sabotage erkannt',
+                eventSabotageOff: 'Sabotage: Entwarnung',
+                eventMoistureOn: 'Feuchtigkeit erkannt',
+                eventMoistureOff: 'Feuchtigkeit: Entwarnung',
             },
             en: {
                 autoRefresh: 'Auto-refresh: 60s',
@@ -226,6 +280,30 @@
                 roomSecurity: 'Room Security',
                 noAlarmData: 'No alarm data',
                 sirenActive: 'Siren active!',
+                tabDashboard: 'Dashboard',
+                tabLog: 'Log',
+                eventLog: 'Event Log',
+                noEvents: 'No events in this period',
+                eventWindowOpened: 'Window opened',
+                eventWindowClosed: 'Window closed',
+                eventMotionOn: 'Motion detected',
+                eventMotionOff: 'No motion',
+                eventZoneArmed: 'Alarm armed',
+                eventZoneDisarmed: 'Alarm disarmed',
+                eventSirenOn: 'Siren activated',
+                eventSirenOff: 'Siren deactivated',
+                eventSmokeAlarm: 'Smoke alarm',
+                eventSmokeOff: 'Smoke alarm: all clear',
+                eventWaterDetected: 'Water detected',
+                eventWaterClear: 'Water: all clear',
+                eventBatteryLow: 'Battery low',
+                eventBatteryOk: 'Battery OK',
+                eventUnreachable: 'Device unreachable',
+                eventReachable: 'Device reachable again',
+                eventSabotageOn: 'Sabotage detected',
+                eventSabotageOff: 'Sabotage: all clear',
+                eventMoistureOn: 'Moisture detected',
+                eventMoistureOff: 'Moisture: all clear',
             }
         };
 
@@ -268,6 +346,19 @@
             });
         });
 
+        let currentView = 'dashboard';
+
+        document.querySelectorAll('.view-tabs button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelector('.view-tabs .active').classList.remove('active');
+                btn.classList.add('active');
+                currentView = btn.dataset.view;
+                document.getElementById('viewDashboard').style.display = currentView === 'dashboard' ? '' : 'none';
+                document.getElementById('viewLog').style.display = currentView === 'log' ? '' : 'none';
+                if (currentView === 'log') loadEvents();
+            });
+        });
+
         function updateStaticLabels() {
             document.getElementById('refreshInfo').textContent = t('autoRefresh');
             document.getElementById('chartTempTitle').textContent = t('temperature');
@@ -276,6 +367,8 @@
             document.getElementById('chartMotionTitle').textContent = t('motionBrightness');
             document.getElementById('sysTitle').textContent = t('systemStatus');
             document.getElementById('chartAlarmTitle').textContent = t('alarmHistory');
+            document.getElementById('tabDashboardBtn').textContent = t('tabDashboard');
+            document.getElementById('tabLogBtn').textContent = t('tabLog');
             // Activate correct lang button
             document.querySelectorAll('.lang-switch button').forEach(b => {
                 b.classList.toggle('active', b.dataset.lang === currentLang);
@@ -309,6 +402,43 @@
         function formatTime(ts) {
             const locale = currentLang === 'de' ? 'de-DE' : 'en-GB';
             return new Date(ts).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function eventDescription(event) {
+            const m = event.event;
+            const nv = event.new_value;
+            switch (m) {
+                case 'window_state':
+                    return nv === 'OPEN' ? t('eventWindowOpened') : t('eventWindowClosed');
+                case 'motion_detected':
+                    return nv === '1' ? t('eventMotionOn') : t('eventMotionOff');
+                case 'zone_active':
+                    return nv === '1' ? t('eventZoneArmed') : t('eventZoneDisarmed');
+                case 'siren_on':
+                    return nv === '1' ? t('eventSirenOn') : t('eventSirenOff');
+                case 'smoke_alarm':
+                    return nv && nv !== 'IDLE_OFF' ? t('eventSmokeAlarm') : t('eventSmokeOff');
+                case 'water_detected':
+                    return nv === '1' ? t('eventWaterDetected') : t('eventWaterClear');
+                case 'moisture_detected':
+                    return nv === '1' ? t('eventMoistureOn') : t('eventMoistureOff');
+                case 'low_battery':
+                    return nv === '1' ? t('eventBatteryLow') : t('eventBatteryOk');
+                case 'unreachable':
+                    return nv === '1' ? t('eventUnreachable') : t('eventReachable');
+                case 'sabotage':
+                    return nv === '1' ? t('eventSabotageOn') : t('eventSabotageOff');
+                default:
+                    return `${m}: ${event.old_value} \u2192 ${nv}`;
+            }
+        }
+
+        function severityIcon(severity) {
+            switch (severity) {
+                case 'critical': return '\ud83d\udea8';
+                case 'warning': return '\u26a0\ufe0f';
+                default: return '\u2139\ufe0f';
+            }
         }
 
         async function loadCurrent() {
@@ -663,8 +793,36 @@
             });
         }
 
+        async function loadEvents() {
+            const logDiv = document.getElementById('viewLog');
+            let resp;
+            try {
+                resp = await fetch(`/api/events?period=${currentPeriod}`);
+            } catch (e) {
+                return;
+            }
+            const events = await resp.json();
+
+            if (!events.length) {
+                logDiv.innerHTML = `<div class="event-log"><h3>${t('eventLog')}</h3><div class="event-empty">${t('noEvents')}</div></div>`;
+                return;
+            }
+
+            let html = `<div class="event-log"><h3>${t('eventLog')}</h3>`;
+            for (const ev of events) {
+                html += `<div class="event-item severity-${ev.severity}">
+                    <span class="event-time">${formatTime(ev.timestamp)}</span>
+                    <span class="event-icon">${severityIcon(ev.severity)}</span>
+                    <span class="event-source">${ev.source}</span>
+                    <span class="event-desc">${eventDescription(ev)}</span>
+                </div>`;
+            }
+            html += `</div>`;
+            logDiv.innerHTML = html;
+        }
+
         async function loadAll() {
-            await Promise.all([
+            const promises = [
                 loadCurrent(),
                 loadSecurityCurrent(),
                 loadTempChart(),
@@ -672,7 +830,11 @@
                 loadWindowChart(),
                 loadMotionChart(),
                 loadAlarmChart(),
-            ]);
+            ];
+            if (currentView === 'log') {
+                promises.push(loadEvents());
+            }
+            await Promise.all(promises);
         }
 
         // Init
