@@ -68,6 +68,26 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_readings_device
         ON device_readings(device_id, metric)
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS security_readings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            group_id TEXT NOT NULL,
+            group_label TEXT,
+            group_type TEXT,
+            metric TEXT NOT NULL,
+            value INTEGER,
+            value_text TEXT
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_security_time
+        ON security_readings(timestamp)
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_security_group
+        ON security_readings(group_id, metric)
+    """)
     conn.commit()
     conn.close()
     log.info("Database initialized at %s", DB_PATH)
@@ -80,6 +100,16 @@ def store_reading(conn, device_id, device_label, device_type, metric, value, val
            (timestamp, device_id, device_label, device_type, metric, value, value_text)
            VALUES (?, ?, ?, ?, ?, ?, ?)""",
         (datetime.now(timezone.utc).isoformat(), device_id, device_label, device_type, metric, value, value_text),
+    )
+
+
+def store_security(conn, group_id, group_label, group_type, metric, value, value_text=None):
+    """Store a single security group reading in the database."""
+    conn.execute(
+        """INSERT INTO security_readings
+           (timestamp, group_id, group_label, group_type, metric, value, value_text)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (datetime.now(timezone.utc).isoformat(), group_id, group_label, group_type, metric, value, value_text),
     )
 
 
@@ -143,6 +173,39 @@ def collect_device_data(conn, device):
         store_reading(conn, device_id, device_label, device_type, "moisture_detected", int(device.moistureDetected))
 
 
+def collect_security_data(conn, home):
+    """Collect security group states from home.groups."""
+    count = 0
+    for group in home.groups:
+        group_id = group.id
+        group_label = group.label
+        group_type_name = type(group).__name__
+
+        if group_type_name == 'SecurityZoneGroup':
+            store_security(conn, group_id, group_label, 'zone',
+                          'zone_active', int(group.active))
+            count += 1
+
+        elif group_type_name == 'AlarmSwitchingGroup':
+            store_security(conn, group_id, group_label, 'alarm',
+                          'siren_on', int(group.on))
+            count += 1
+
+        elif group_type_name == 'SecurityGroup':
+            if hasattr(group, 'windowState') and group.windowState is not None:
+                store_security(conn, group_id, group_label, 'room_security',
+                              'window_state', None, str(group.windowState))
+            if hasattr(group, 'motionDetected') and group.motionDetected is not None:
+                store_security(conn, group_id, group_label, 'room_security',
+                              'motion_detected', int(group.motionDetected))
+            if hasattr(group, 'sabotage') and group.sabotage is not None:
+                store_security(conn, group_id, group_label, 'room_security',
+                              'sabotage', int(group.sabotage))
+            count += 1
+
+    log.info("Collected security data from %d groups", count)
+
+
 async def poll_once(home):
     """Fetch current state from the cloud and store all device data."""
     await home.get_current_state_async()
@@ -156,6 +219,11 @@ async def poll_once(home):
             count += 1
         except Exception as e:
             log.warning("Error reading device %s (%s): %s", device.label, device.id, e)
+
+    try:
+        collect_security_data(conn, home)
+    except Exception as e:
+        log.warning("Error collecting security data: %s", e)
 
     conn.commit()
     conn.close()
