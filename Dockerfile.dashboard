@@ -16,4 +16,4 @@ USER appuser
 ENV PATH=/home/appuser/.local/bin:$PATH
 
 HEALTHCHECK --interval=30s --timeout=10s CMD curl -f http://localhost:8080/health || exit 1
-CMD ["python", "app.py"]
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8080", "--workers", "2", "--worker-tmp-dir", "/tmp", "--no-control-socket"]

@@ -1,3 +1,5 @@
+name: homemonitor
+
 services:
   collector:
     build: .

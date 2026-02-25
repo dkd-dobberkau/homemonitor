@@ -182,13 +182,15 @@ def collect_security_data(conn, home):
         group_type_name = type(group).__name__
 
         if group_type_name == 'SecurityZoneGroup':
-            store_security(conn, group_id, group_label, 'zone',
-                          'zone_active', int(group.active))
+            if group.active is not None:
+                store_security(conn, group_id, group_label, 'zone',
+                              'zone_active', int(group.active))
             count += 1
 
         elif group_type_name == 'AlarmSwitchingGroup':
-            store_security(conn, group_id, group_label, 'alarm',
-                          'siren_on', int(group.on))
+            if group.on is not None:
+                store_security(conn, group_id, group_label, 'alarm',
+                              'siren_on', int(group.on))
             count += 1
 
         elif group_type_name == 'SecurityGroup':
