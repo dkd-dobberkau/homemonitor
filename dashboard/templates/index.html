@@ -12,15 +12,24 @@
 
         header {
             background: #1a1a2e; color: white; padding: 1rem 2rem;
-            display: flex; justify-content: space-between; align-items: center;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;
         }
         header h1 { font-size: 1.3rem; font-weight: 600; }
+        .header-controls { display: flex; align-items: center; gap: 1rem; }
         .period-buttons { display: flex; gap: 0.5rem; }
         .period-buttons button {
             background: #16213e; border: 1px solid #0f3460; color: #ccc;
             padding: 0.4rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
         }
         .period-buttons button.active { background: #0f3460; color: white; border-color: #53a8b6; }
+        .lang-switch {
+            display: flex; gap: 0.3rem;
+        }
+        .lang-switch button {
+            background: #16213e; border: 1px solid #0f3460; color: #ccc;
+            padding: 0.3rem 0.6rem; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600;
+        }
+        .lang-switch button.active { background: #0f3460; color: white; border-color: #53a8b6; }
         .refresh-info { font-size: 0.75rem; color: #888; }
 
         .container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
@@ -62,13 +71,19 @@
 <body>
     <header>
         <h1>HomeMonitor</h1>
-        <div class="period-buttons">
-            <button data-period="1h">1h</button>
-            <button data-period="6h">6h</button>
-            <button data-period="24h" class="active">24h</button>
-            <button data-period="7d">7d</button>
+        <div class="header-controls">
+            <div class="period-buttons">
+                <button data-period="1h">1h</button>
+                <button data-period="6h">6h</button>
+                <button data-period="24h" class="active">24h</button>
+                <button data-period="7d">7d</button>
+            </div>
+            <div class="lang-switch">
+                <button data-lang="de" class="active">DE</button>
+                <button data-lang="en">EN</button>
+            </div>
         </div>
-        <span class="refresh-info">Auto-Refresh: 60s</span>
+        <span class="refresh-info" id="refreshInfo"></span>
     </header>
 
     <div class="container">
@@ -76,31 +91,101 @@
 
         <div class="charts">
             <div class="chart-box">
-                <h3>Temperatur</h3>
+                <h3 id="chartTempTitle"></h3>
                 <canvas id="chartTemp"></canvas>
             </div>
             <div class="chart-box">
-                <h3>Luftfeuchtigkeit</h3>
+                <h3 id="chartHumTitle"></h3>
                 <canvas id="chartHumidity"></canvas>
             </div>
             <div class="chart-box">
-                <h3>Fenster &amp; T&uuml;ren</h3>
+                <h3 id="chartWinTitle"></h3>
                 <canvas id="chartWindows"></canvas>
             </div>
             <div class="chart-box">
-                <h3>Bewegung &amp; Helligkeit</h3>
+                <h3 id="chartMotionTitle"></h3>
                 <canvas id="chartMotion"></canvas>
             </div>
             <div class="chart-box" style="grid-column: 1 / -1;">
-                <h3>System-Status</h3>
+                <h3 id="sysTitle"></h3>
                 <div class="system-grid" id="systemStatus"></div>
             </div>
         </div>
     </div>
 
     <script>
+        const I18N = {
+            de: {
+                autoRefresh: 'Auto-Refresh: 60s',
+                outside: 'Au\u00dfen',
+                insideThermostat: 'Innen (Thermostat)',
+                humidity: 'Luftfeuchtigkeit',
+                setpoint: 'Soll',
+                moisture: 'Feuchte',
+                windowsDoors: 'Fenster & T\u00fcren',
+                closed: 'Geschlossen',
+                open: 'Offen',
+                motionDetector: 'Bewegungsmelder',
+                motionDetected: 'Bewegung erkannt',
+                noMotion: 'Keine Bewegung',
+                brightness: 'Helligkeit',
+                lastSeen: 'Zuletzt',
+                batteryLow: 'Batterie schwach!',
+                temperature: 'Temperatur',
+                windowsDoorsChart: 'Fenster & T\u00fcren',
+                motionBrightness: 'Bewegung & Helligkeit',
+                systemStatus: 'System-Status',
+                setpointTemp: 'Solltemperatur',
+                motion: 'Bewegung',
+                brightnessLux: 'Helligkeit (Lux)',
+                yesLabel: 'Ja',
+                noLabel: 'Nein',
+                openLabel: 'Offen',
+                closedLabel: 'Zu',
+                rssiGood: 'Gut',
+                rssiOk: 'OK',
+                rssiWeak: 'Schwach',
+                motionAxis: 'Bewegung',
+            },
+            en: {
+                autoRefresh: 'Auto-refresh: 60s',
+                outside: 'Outside',
+                insideThermostat: 'Inside (Thermostat)',
+                humidity: 'Humidity',
+                setpoint: 'Target',
+                moisture: 'Humidity',
+                windowsDoors: 'Windows & Doors',
+                closed: 'Closed',
+                open: 'Open',
+                motionDetector: 'Motion Detector',
+                motionDetected: 'Motion detected',
+                noMotion: 'No motion',
+                brightness: 'Brightness',
+                lastSeen: 'Last seen',
+                batteryLow: 'Battery low!',
+                temperature: 'Temperature',
+                windowsDoorsChart: 'Windows & Doors',
+                motionBrightness: 'Motion & Brightness',
+                systemStatus: 'System Status',
+                setpointTemp: 'Target temperature',
+                motion: 'Motion',
+                brightnessLux: 'Brightness (Lux)',
+                yesLabel: 'Yes',
+                noLabel: 'No',
+                openLabel: 'Open',
+                closedLabel: 'Closed',
+                rssiGood: 'Good',
+                rssiOk: 'OK',
+                rssiWeak: 'Weak',
+                motionAxis: 'Motion',
+            }
+        };
+
+        let currentLang = localStorage.getItem('homemonitor-lang') || 'de';
         let currentPeriod = '24h';
         let charts = {};
+
+        function t(key) { return I18N[currentLang][key] || key; }
 
         const COLORS = {
             tempOutside: '#e74c3c',
@@ -122,6 +207,32 @@
             });
         });
 
+        // Language switch
+        document.querySelectorAll('.lang-switch button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelector('.lang-switch .active').classList.remove('active');
+                btn.classList.add('active');
+                currentLang = btn.dataset.lang;
+                localStorage.setItem('homemonitor-lang', currentLang);
+                document.documentElement.lang = currentLang;
+                updateStaticLabels();
+                loadAll();
+            });
+        });
+
+        function updateStaticLabels() {
+            document.getElementById('refreshInfo').textContent = t('autoRefresh');
+            document.getElementById('chartTempTitle').textContent = t('temperature');
+            document.getElementById('chartHumTitle').textContent = t('humidity');
+            document.getElementById('chartWinTitle').textContent = t('windowsDoorsChart');
+            document.getElementById('chartMotionTitle').textContent = t('motionBrightness');
+            document.getElementById('sysTitle').textContent = t('systemStatus');
+            // Activate correct lang button
+            document.querySelectorAll('.lang-switch button').forEach(b => {
+                b.classList.toggle('active', b.dataset.lang === currentLang);
+            });
+        }
+
         const TIME_SCALE = {
             '1h':  { unit: 'minute', stepSize: 5,  displayFormats: { minute: 'HH:mm' } },
             '6h':  { unit: 'minute', stepSize: 30, displayFormats: { minute: 'HH:mm' } },
@@ -141,13 +252,14 @@
         }
 
         function rssiLabel(val) {
-            if (val > -60) return 'Gut';
-            if (val > -75) return 'OK';
-            return 'Schwach';
+            if (val > -60) return t('rssiGood');
+            if (val > -75) return t('rssiOk');
+            return t('rssiWeak');
         }
 
         function formatTime(ts) {
-            return new Date(ts).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+            const locale = currentLang === 'de' ? 'de-DE' : 'en-GB';
+            return new Date(ts).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
         }
 
         async function loadCurrent() {
@@ -160,9 +272,9 @@
             const outside = data['Temperatur- und Luftfeuchtigkeitssensor - au\u00dfen'];
             if (outside) {
                 html += `<div class="card">
-                    <h3>Au&szlig;en</h3>
+                    <h3>${t('outside')}</h3>
                     <div class="value">${outside.metrics.temperature?.value?.toFixed(1) ?? '?'}&deg;C</div>
-                    <div class="sub">Luftfeuchtigkeit: ${outside.metrics.humidity?.value?.toFixed(0) ?? '?'}%</div>
+                    <div class="sub">${t('humidity')}: ${outside.metrics.humidity?.value?.toFixed(0) ?? '?'}%</div>
                 </div>`;
             }
 
@@ -170,9 +282,9 @@
             const thermo = data['Wandthermostat'];
             if (thermo) {
                 html += `<div class="card">
-                    <h3>Innen (Thermostat)</h3>
+                    <h3>${t('insideThermostat')}</h3>
                     <div class="value">${thermo.metrics.temperature?.value?.toFixed(1) ?? '?'}&deg;C</div>
-                    <div class="sub">Soll: ${thermo.metrics.setpoint_temperature?.value?.toFixed(1) ?? '?'}&deg;C &middot; Feuchte: ${thermo.metrics.humidity?.value?.toFixed(0) ?? '?'}%</div>
+                    <div class="sub">${t('setpoint')}: ${thermo.metrics.setpoint_temperature?.value?.toFixed(1) ?? '?'}&deg;C &middot; ${t('moisture')}: ${thermo.metrics.humidity?.value?.toFixed(0) ?? '?'}%</div>
                 </div>`;
             }
 
@@ -184,11 +296,11 @@
                 if (dev) {
                     const state = dev.metrics.window_state?.value_text || 'UNKNOWN';
                     const cls = state === 'CLOSED' ? 'closed' : 'open';
-                    const label = state === 'CLOSED' ? 'Geschlossen' : 'Offen';
+                    const label = state === 'CLOSED' ? t('closed') : t('open');
                     contactHtml += `<div class="status-row"><span class="status-dot ${cls}"></span>${name}: ${label}</div>`;
                 }
             }
-            html += `<div class="card"><h3>Fenster &amp; T&uuml;ren</h3>${contactHtml}</div>`;
+            html += `<div class="card"><h3>${t('windowsDoors')}</h3>${contactHtml}</div>`;
 
             // Motion detector
             const motion = data['Bewegungsmelder - innen'];
@@ -196,10 +308,10 @@
                 const detected = motion.metrics.motion_detected?.value === 1;
                 const lux = motion.metrics.illumination?.value?.toFixed(1) ?? '?';
                 html += `<div class="card">
-                    <h3>Bewegungsmelder</h3>
-                    <div class="status-row"><span class="status-dot ${detected ? 'open' : 'closed'}"></span>${detected ? 'Bewegung erkannt' : 'Keine Bewegung'}</div>
-                    <div class="sub">Helligkeit: ${lux} Lux</div>
-                    <div class="sub">Zuletzt: ${formatTime(motion.metrics.motion_detected?.timestamp)}</div>
+                    <h3>${t('motionDetector')}</h3>
+                    <div class="status-row"><span class="status-dot ${detected ? 'open' : 'closed'}"></span>${detected ? t('motionDetected') : t('noMotion')}</div>
+                    <div class="sub">${t('brightness')}: ${lux} Lux</div>
+                    <div class="sub">${t('lastSeen')}: ${formatTime(motion.metrics.motion_detected?.timestamp)}</div>
                 </div>`;
             }
 
@@ -220,7 +332,7 @@
                 if (battery === 1) {
                     sysHtml += `<div class="system-item">
                         <span class="label">${name}</span>
-                        <span class="rssi-bad">Batterie schwach!</span>
+                        <span class="rssi-bad">${t('batteryLow')}</span>
                     </div>`;
                 }
             }
@@ -270,7 +382,7 @@
                 if (tempRows.length) {
                     const isOutside = device.includes('au\u00dfen');
                     datasets.push({
-                        label: isOutside ? 'Au\u00dfen' : device,
+                        label: isOutside ? t('outside') : device,
                         data: tempRows.map(r => ({ x: new Date(r.timestamp), y: r.value })),
                         borderColor: isOutside ? COLORS.tempOutside : COLORS.tempInside,
                         backgroundColor: 'transparent',
@@ -278,7 +390,7 @@
                 }
                 if (setpointRows.length) {
                     datasets.push({
-                        label: 'Solltemperatur',
+                        label: t('setpointTemp'),
                         data: setpointRows.map(r => ({ x: new Date(r.timestamp), y: r.value })),
                         borderColor: COLORS.setpoint,
                         borderDash: [5, 5],
@@ -298,7 +410,7 @@
             for (const [device, rows] of Object.entries(grouped)) {
                 const isOutside = device.includes('au\u00dfen');
                 datasets.push({
-                    label: isOutside ? 'Au\u00dfen' : device,
+                    label: isOutside ? t('outside') : device,
                     data: rows.map(r => ({ x: new Date(r.timestamp), y: r.value })),
                     borderColor: isOutside ? COLORS.humOutside : COLORS.humInside,
                     backgroundColor: 'transparent',
@@ -335,7 +447,7 @@
                     responsive: true,
                     scales: {
                         x: timeScale(),
-                        y: { min: -0.1, max: 1.1, ticks: { callback: v => v === 1 ? 'Offen' : v === 0 ? 'Zu' : '' } }
+                        y: { min: -0.1, max: 1.1, ticks: { callback: v => v === 1 ? t('openLabel') : v === 0 ? t('closedLabel') : '' } }
                     },
                     plugins: { legend: { position: 'top' } },
                     elements: { point: { radius: 0 }, line: { borderWidth: 2 } }
@@ -353,7 +465,7 @@
             const datasets = [];
             if (motionRows.length) {
                 datasets.push({
-                    label: 'Bewegung',
+                    label: t('motion'),
                     data: motionRows.map(r => ({ x: new Date(r.timestamp), y: r.value })),
                     borderColor: COLORS.motion,
                     backgroundColor: COLORS.motion + '33',
@@ -364,7 +476,7 @@
             }
             if (luxRows.length) {
                 datasets.push({
-                    label: 'Helligkeit (Lux)',
+                    label: t('brightnessLux'),
                     data: luxRows.map(r => ({ x: new Date(r.timestamp), y: r.value })),
                     borderColor: COLORS.illumination,
                     backgroundColor: 'transparent',
@@ -382,7 +494,7 @@
                     interaction: { mode: 'index', intersect: false },
                     scales: {
                         x: timeScale(),
-                        y: { position: 'left', min: -0.1, max: 1.1, title: { display: true, text: 'Bewegung' }, ticks: { callback: v => v === 1 ? 'Ja' : v === 0 ? 'Nein' : '' } },
+                        y: { position: 'left', min: -0.1, max: 1.1, title: { display: true, text: t('motionAxis') }, ticks: { callback: v => v === 1 ? t('yesLabel') : v === 0 ? t('noLabel') : '' } },
                         y2: { position: 'right', title: { display: true, text: 'Lux' }, grid: { drawOnChartArea: false } }
                     },
                     plugins: { legend: { position: 'top' } },
@@ -401,6 +513,8 @@
             ]);
         }
 
+        // Init
+        updateStaticLabels();
         loadAll();
         setInterval(loadAll, 60000);
     </script>
