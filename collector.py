@@ -5,12 +5,12 @@ Polls the Homematic IP Cloud API every 5 minutes and stores sensor data in SQLit
 """
 
 import asyncio
-import json
 import logging
 import sqlite3
-import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+import pandas as pd
 
 import homematicip
 from homematicip.home import Home
@@ -208,6 +208,36 @@ def collect_security_data(conn, home):
     log.info("Collected security data from %d groups", count)
 
 
+BACKUP_DIR = DB_PATH.parent / "backup"
+
+
+def backup_to_parquet():
+    """Export last 24h of readings to daily Parquet files."""
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+
+    conn = sqlite3.connect(str(DB_PATH))
+    tables = ["device_readings", "security_readings"]
+
+    for table in tables:
+        df = pd.read_sql_query(
+            f"SELECT * FROM {table} WHERE timestamp >= ?",  # noqa: S608
+            conn,
+            params=(cutoff,),
+            parse_dates=["timestamp"],
+        )
+        if df.empty:
+            log.info("Backup: no data in %s for last 24h, skipping", table)
+            continue
+
+        path = BACKUP_DIR / f"{table}_{today}.parquet"
+        df.to_parquet(path, index=False)
+        log.info("Backup: wrote %d rows to %s", len(df), path)
+
+    conn.close()
+
+
 async def poll_once(home):
     """Fetch current state from the cloud and store all device data."""
     await home.get_current_state_async()
@@ -248,11 +278,21 @@ async def main():
 
     log.info("Connected to Access Point: %s", config.access_point)
 
+    last_backup_date = None
+
     while True:
         try:
             await poll_once(home)
         except Exception as e:
             log.error("Poll error: %s", e)
+
+        today_utc = datetime.now(timezone.utc).date()
+        if last_backup_date != today_utc:
+            try:
+                backup_to_parquet()
+                last_backup_date = today_utc
+            except Exception as e:
+                log.error("Backup error: %s", e)
 
         log.info("Next poll in %d seconds...", POLL_INTERVAL)
         await asyncio.sleep(POLL_INTERVAL)

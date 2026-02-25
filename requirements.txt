@@ -1,1 +1,3 @@
 homematicip
+pandas
+pyarrow
