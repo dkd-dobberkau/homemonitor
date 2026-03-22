@@ -37,10 +37,10 @@ This creates a `config.ini` in the current directory.
 cp /path/to/config.ini ./config.ini
 ```
 
-### 3. Start
+### 3. Start (Local Build)
 
 ```bash
-docker compose up -d
+docker compose up --build -d
 ```
 
 The dashboard is available at **http://localhost:8080**.
@@ -49,6 +49,52 @@ The dashboard is available at **http://localhost:8080**.
 
 ```bash
 docker compose logs -f
+```
+
+## Deploy to Raspberry Pi
+
+Pre-built multi-arch images (amd64 + arm64) are published to GHCR on every push to `main`.
+
+### 1. Install Docker
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+# Log out and back in
+```
+
+### 2. Create Project Directory
+
+```bash
+mkdir ~/homemonitor && cd ~/homemonitor
+```
+
+### 3. Download Compose File
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dkd-dobberkau/homemonitor/main/docker-compose.prod.yml \
+  -o docker-compose.yml
+```
+
+### 4. Add config.ini
+
+Copy the `config.ini` generated in [step 1](#1-generate-auth-token) to `~/homemonitor/config.ini`.
+
+### 5. Fix Permissions and Start
+
+```bash
+mkdir -p data && sudo chown 1000:1000 data
+docker compose up -d
+```
+
+The dashboard is available at **http://<raspi-ip>:8080**.
+
+### Update
+
+```bash
+cd ~/homemonitor
+docker compose pull
+docker compose up -d
 ```
 
 ## Architecture
