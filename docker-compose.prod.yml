@@ -1,0 +1,21 @@
+name: homemonitor
+
+services:
+  collector:
+    image: ghcr.io/dkd-dobberkau/homemonitor-collector:latest
+    container_name: homemonitor-collector
+    volumes:
+      - ./data:/app/data
+      - ./config.ini:/app/config.ini:ro
+    restart: unless-stopped
+
+  dashboard:
+    image: ghcr.io/dkd-dobberkau/homemonitor-dashboard:latest
+    container_name: homemonitor-dashboard
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data:ro
+    restart: unless-stopped
+    depends_on:
+      - collector
