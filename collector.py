@@ -241,6 +241,7 @@ def init_db():
     """Create the SQLite database and tables if they don't exist."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH))
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS device_readings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -19,8 +19,9 @@ PERIOD_MAP = {
 
 
 def get_db():
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), timeout=5)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 
@@ -49,13 +50,16 @@ def api_current():
     """Return the latest reading for each device+metric combination."""
     conn = get_db()
     rows = conn.execute("""
-        SELECT device_label, device_type, metric, value, value_text, timestamp
-        FROM device_readings r1
-        WHERE timestamp = (
-            SELECT MAX(timestamp) FROM device_readings r2
-            WHERE r2.device_id = r1.device_id AND r2.metric = r1.metric
-        )
-        ORDER BY device_label, metric
+        SELECT r.device_label, r.device_type, r.metric, r.value, r.value_text, r.timestamp
+        FROM device_readings r
+        INNER JOIN (
+            SELECT device_id, metric, MAX(timestamp) AS max_ts
+            FROM device_readings
+            GROUP BY device_id, metric
+        ) latest ON r.device_id = latest.device_id
+                 AND r.metric = latest.metric
+                 AND r.timestamp = latest.max_ts
+        ORDER BY r.device_label, r.metric
     """).fetchall()
     conn.close()
 
@@ -77,13 +81,16 @@ def api_security_current():
     """Return the latest reading for each security group+metric."""
     conn = get_db()
     rows = conn.execute("""
-        SELECT group_label, group_type, metric, value, value_text, timestamp
-        FROM security_readings r1
-        WHERE timestamp = (
-            SELECT MAX(timestamp) FROM security_readings r2
-            WHERE r2.group_id = r1.group_id AND r2.metric = r1.metric
-        )
-        ORDER BY group_type, group_label, metric
+        SELECT r.group_label, r.group_type, r.metric, r.value, r.value_text, r.timestamp
+        FROM security_readings r
+        INNER JOIN (
+            SELECT group_id, metric, MAX(timestamp) AS max_ts
+            FROM security_readings
+            GROUP BY group_id, metric
+        ) latest ON r.group_id = latest.group_id
+                 AND r.metric = latest.metric
+                 AND r.timestamp = latest.max_ts
+        ORDER BY r.group_type, r.group_label, r.metric
     """).fetchall()
     conn.close()
 
