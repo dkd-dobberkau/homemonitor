@@ -262,6 +262,15 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_readings_device
         ON device_readings(device_id, metric)
     """)
+    # Covering-Index für /api/current ("neuester Wert je device_id+metric").
+    # Ohne timestamp im Index muss MAX(timestamp) GROUP BY device_id, metric die
+    # ganze Tabelle scannen (bei ~600k Zeilen 6-7 s → ESP-HTTP-Timeout). Mit
+    # (device_id, metric, timestamp) wird daraus ein Skip-Scan auf die letzten
+    # Einträge pro Gruppe (~ms).
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_readings_latest
+        ON device_readings(device_id, metric, timestamp)
+    """)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS security_readings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
